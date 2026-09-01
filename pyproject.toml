@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slashmad-arecordgui"
+version = "0.1.0"
+description = "A small GTK4 recorder that keeps arecord and direct ALSA in the capture path"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "GPL-3.0-or-later"
+authors = [{name = "slashmad"}]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/slashmad/slashmad-arecordgui"
+Repository = "https://github.com/slashmad/slashmad-arecordgui.git"
+Issues = "https://github.com/slashmad/slashmad-arecordgui/issues"
+
+[project.scripts]
+slashmad-arecordgui = "arecordgui.app:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

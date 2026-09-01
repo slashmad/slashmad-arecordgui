@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=slashmad arecord GUI
+GenericName=Audio Recorder
+Comment=Record audio through direct ALSA hardware devices
+Exec=slashmad-arecordgui
+Icon=se.slashmad.arecordgui
+Terminal=false
+Categories=AudioVideo;Audio;Recorder;
+Keywords=ALSA;audio;recording;cassette;tape;
+StartupNotify=true

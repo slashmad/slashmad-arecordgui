@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>se.slashmad.arecordgui</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>slashmad arecord GUI</name>
+  <summary>Record audio through direct ALSA hardware devices</summary>
+  <description>
+    <p>
+      This GTK4 frontend records uncompressed audio with arecord through an
+      explicitly selected ALSA hardware PCM.
+    </p>
+    <p>
+      It keeps BlackmagicIO as the default device and records stereo audio at
+      48 kHz in the S32_LE format without routing capture through an audio
+      server.
+    </p>
+  </description>
+  <launchable type="desktop-id">se.slashmad.arecordgui.desktop</launchable>
+  <icon type="stock">se.slashmad.arecordgui</icon>
+  <url type="homepage">https://github.com/slashmad/slashmad-arecordgui</url>
+  <url type="bugtracker">https://github.com/slashmad/slashmad-arecordgui/issues</url>
+  <provides>
+    <binary>slashmad-arecordgui</binary>
+  </provides>
+  <developer id="se.slashmad">
+    <name>slashmad</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <categories>
+    <category>AudioVideo</category>
+    <category>Audio</category>
+    <category>Recorder</category>
+  </categories>
+  <releases>
+    <release version="0.1.0" date="2026-09-01">
+      <description>
+        <p>Initial Fedora package.</p>
+      </description>
+    </release>
+  </releases>
+</component>
