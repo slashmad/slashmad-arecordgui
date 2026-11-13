@@ -1,4 +1,14 @@
-# slashmad-arecordgui
+<p align="center">
+  <img src="slashmad-arecordgui.png" width="160" alt="slashmad-arecordgui icon">
+</p>
+
+<h1 align="center">slashmad-arecordgui</h1>
+
+<p align="center">
+  A small GTK4 frontend for direct ALSA recording with arecord.
+</p>
+
+---
 
 Project homepage: <https://github.com/slashmad/slashmad-arecordgui>
 
@@ -124,3 +134,11 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 Automatic splitting and launching REAPER are intentionally deferred until the
 single-file capture path has been exercised with the real hardware.
+
+## Support
+
+Like slashmad-arecordgui? Buy me a beer 🍺
+
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-sponsor-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/slashmad)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-buy%20me%20a%20beer-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/slashmad)
+[![Liberapay](https://img.shields.io/badge/Liberapay-donate-F6C915?logo=liberapay&logoColor=black)](https://liberapay.com/slashmad/)
