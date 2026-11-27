@@ -1,6 +1,6 @@
 Name:           slashmad-arecordgui
 Version:        0.1.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Direct ALSA recording frontend
 
 License:        GPL-3.0-or-later
@@ -64,6 +64,10 @@ appstreamcli validate --no-net --strict \
 %{_datadir}/icons/hicolor/512x512/apps/se.slashmad.arecordgui.png
 
 %changelog
+* Tue Sep 01 2026 slashmad - 0.1.0-3
+- Allow arecord to recover from transient ALSA errors
+- Drain and clean stderr before reporting an unexpected exit
+
 * Tue Sep 01 2026 slashmad - 0.1.0-2
 - Avoid a duplicate installed title-bar icon
 - Expose the application icon and project URLs through AppStream

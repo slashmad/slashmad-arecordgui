@@ -2,6 +2,8 @@ from datetime import datetime
 from pathlib import Path
 import math
 import signal
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -9,8 +11,10 @@ from arecordgui.core import (
     DEFAULT_CAPTURE_DEVICE,
     CaptureProfile,
     capture_devices_with_default,
+    capture_error_detail,
     capture_exit_was_clean,
     count_xruns,
+    drain_stderr_and_wait,
     ensure_directory,
     parse_vu,
     parse_capture_devices,
@@ -26,6 +30,7 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(command[:3], ["arecord", "-D", "hw:BlackmagicIO,0"])
         self.assertIn("S32_LE", command)
         self.assertIn("48000", command)
+        self.assertNotIn("--fatal-errors", command)
         self.assertEqual(command[-1], "/tmp/tape.wav")
 
     def test_capture_profile_accepts_another_direct_hardware_device(self):
@@ -102,6 +107,43 @@ card 3: USB [USB Audio], device 1: USB Audio [USB Audio]
 
     def test_xrun_count_is_case_insensitive(self):
         self.assertEqual(count_xruns("overrun!!! (at least 1.0 ms long)\nXRUN"), 2)
+
+    def test_capture_error_uses_diagnostic_instead_of_vu_meter(self):
+        stderr = (
+            "Recording WAVE '/tmp/tape.wav' : Signed 32 bit Little Endian\n"
+            "\r#+00%|00%+\r"
+            "arecord: pcm_read:2240: read error: Input/output error\n"
+            "\r#+00%|00%+\r"
+        )
+        self.assertEqual(
+            capture_error_detail(stderr, 1),
+            "arecord exited unexpectedly (exit code 1): "
+            "arecord: pcm_read:2240: read error: Input/output error",
+        )
+
+    def test_capture_error_with_only_vu_output_keeps_exit_code(self):
+        self.assertEqual(
+            capture_error_detail("\x1b[32m\r#+00%|00%+\x1b[0m\r", -5),
+            "arecord exited unexpectedly (exit code -5)",
+        )
+
+    def test_process_stderr_is_drained_before_exit_is_reported(self):
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                "import sys; "
+                "sys.stderr.write('first\\n'); sys.stderr.flush(); "
+                "sys.stderr.write('last error\\n'); raise SystemExit(7)",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        chunks: list[str] = []
+        returncode, stderr_tail = drain_stderr_and_wait(process, chunks.append)
+        self.assertEqual(returncode, 7)
+        self.assertEqual("".join(chunks), "first\nlast error\n")
+        self.assertEqual(stderr_tail, "first\nlast error\n")
 
     def test_requested_sigint_exit_one_is_clean(self):
         self.assertTrue(capture_exit_was_clean(1, stop_requested=True))

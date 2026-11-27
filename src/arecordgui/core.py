@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 import math
@@ -7,10 +8,16 @@ from pathlib import Path
 import re
 import signal
 import shutil
+import subprocess
 
 
 VU_RE = re.compile(r"(\d{1,3})%\s*\|\s*(\d{1,3})%")
 XRUN_RE = re.compile(r"\b(?:xrun|overrun)\b", re.IGNORECASE)
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+ERROR_HINT_RE = re.compile(
+    r"\b(?:arecord|alsa|error|failed|xrun|overrun|underrun|input/output)\b",
+    re.IGNORECASE,
+)
 CAPTURE_DEVICE_RE = re.compile(
     r"^\s*card\s+\d+:\s+(?P<card_id>\S+)\s+"
     r"\[(?P<card_name>[^]]*)\],\s+device\s+"
@@ -34,7 +41,6 @@ class CaptureProfile:
             "-r", str(self.rate),
             "-c", str(self.channels),
             "--vumeter=stereo",
-            "--fatal-errors",
             "--", str(destination),
         ]
 
@@ -144,6 +150,44 @@ def parse_vu(text: str) -> tuple[int, int] | None:
 
 def count_xruns(text: str) -> int:
     return len(XRUN_RE.findall(text))
+
+
+def drain_stderr_and_wait(
+    process: subprocess.Popen[bytes],
+    on_output: Callable[[str], object],
+    *,
+    tail_limit: int = 8192,
+) -> tuple[int, str]:
+    """Drain process stderr before returning its status and bounded tail."""
+    assert process.stderr is not None
+    stderr_tail = ""
+    try:
+        while chunk := process.stderr.read(256):
+            text = chunk.decode(errors="replace")
+            stderr_tail = (stderr_tail + text)[-tail_limit:]
+            on_output(text)
+    finally:
+        process.stderr.close()
+    return process.wait(), stderr_tail
+
+
+def capture_error_detail(stderr: str, returncode: int) -> str:
+    """Return a stable arecord failure description without VU-meter noise."""
+    preferred: list[str] = []
+    fallback: list[str] = []
+    normalized = ANSI_ESCAPE_RE.sub("", stderr).replace("\r", "\n")
+    for raw_line in normalized.splitlines():
+        line = VU_RE.sub("", raw_line).strip()
+        line = line.strip(" +#|[]<>")
+        if not line or line.startswith("Recording WAVE "):
+            continue
+        fallback.append(line)
+        if ERROR_HINT_RE.search(line):
+            preferred.append(line)
+
+    detail = preferred[-1] if preferred else (fallback[-1] if fallback else "")
+    message = f"arecord exited unexpectedly (exit code {returncode})"
+    return f"{message}: {detail}" if detail else message
 
 
 def capture_exit_was_clean(returncode: int, stop_requested: bool) -> bool:

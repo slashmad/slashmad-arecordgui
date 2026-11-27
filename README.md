@@ -1,3 +1,8 @@
+> [!IMPORTANT]
+> **Recommended successor: [SlashDigitize](https://github.com/slashmad/SlashDigitize)**
+>
+> We recommend using **[SlashDigitize](https://github.com/slashmad/SlashDigitize)** instead of slashmad-arecordgui. SlashDigitize is the updated, combined successor to both [SlashmadFFmpegGUI](https://github.com/slashmad/SlashmadFFmpegGUI) and slashmad-arecordgui, bringing the audio and video workflows together into one native GTK4/libadwaita application.
+
 <p align="center">
   <img src="slashmad-arecordgui.png" width="160" alt="slashmad-arecordgui icon">
 </p>

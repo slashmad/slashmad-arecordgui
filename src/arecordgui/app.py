@@ -20,8 +20,10 @@ from .core import (
     CaptureDevice,
     CaptureProfile,
     capture_devices_with_default,
+    capture_error_detail,
     capture_exit_was_clean,
     count_xruns,
+    drain_stderr_and_wait,
     ensure_directory,
     free_bytes,
     parse_vu,
@@ -89,7 +91,7 @@ class RecorderWindow(Gtk.ApplicationWindow):
         self.started_at = 0.0
         self.xruns = 0
         self.clipped = False
-        self.stderr_tail = ""
+        self.meter_tail = ""
         self.icon_path = find_icon_path()
         self.title_menu_button: Gtk.MenuButton | None = None
 
@@ -495,7 +497,7 @@ class RecorderWindow(Gtk.ApplicationWindow):
         self.destination = destination
         self.stop_requested = False
         self.auto_stop_requested = False
-        self.started_at = time.monotonic(); self.xruns = 0; self.clipped = False; self.stderr_tail = ""
+        self.started_at = time.monotonic(); self.xruns = 0; self.clipped = False; self.meter_tail = ""
         self.file_label.set_text(str(destination))
         self.status.set_text("Recording directly from ALSA…")
         self._set_controls(True)
@@ -506,8 +508,11 @@ class RecorderWindow(Gtk.ApplicationWindow):
                 threshold_dbfs=self.auto_stop_threshold.get_value(),
             )
             self._start_auto_stop(destination, config)
-        threading.Thread(target=self._read_stderr, args=(self.process,), daemon=True).start()
-        threading.Thread(target=self._wait_process, args=(self.process,), daemon=True).start()
+        threading.Thread(
+            target=self._monitor_process,
+            args=(self.process,),
+            daemon=True,
+        ).start()
 
     def _start_auto_stop(self, destination: Path, config: AutoStopConfig) -> None:
         self._stop_auto_stop_analyzer()
@@ -615,14 +620,18 @@ class RecorderWindow(Gtk.ApplicationWindow):
             return AUTO_STOP_COUNTDOWN_SECONDS
         return max(0, math.ceil(self.auto_stop_deadline - time.monotonic()))
 
-    def _read_stderr(self, process: subprocess.Popen[bytes]) -> None:
-        assert process.stderr is not None
-        while chunk := process.stderr.read(256):
-            GLib.idle_add(self._handle_output, chunk.decode(errors="replace"))
+    def _monitor_process(self, process: subprocess.Popen[bytes]) -> None:
+        def on_output(text: str) -> None:
+            GLib.idle_add(self._handle_output, process, text)
 
-    def _handle_output(self, text: str) -> bool:
-        combined = self.stderr_tail + text
-        self.stderr_tail = combined[-1000:]
+        returncode, stderr_tail = drain_stderr_and_wait(process, on_output)
+        GLib.idle_add(self._process_done, process, returncode, stderr_tail)
+
+    def _handle_output(self, process: subprocess.Popen[bytes], text: str) -> bool:
+        if process is not self.process:
+            return GLib.SOURCE_REMOVE
+        combined = self.meter_tail + text
+        self.meter_tail = combined[-256:]
         vu = parse_vu(combined)
         if vu:
             for index, percent in enumerate(vu):
@@ -649,11 +658,12 @@ class RecorderWindow(Gtk.ApplicationWindow):
             self.stop_requested = True
             self.auto_stop_requested = auto_stop_requested
 
-    def _wait_process(self, process: subprocess.Popen[bytes]) -> None:
-        returncode = process.wait()
-        GLib.idle_add(self._process_done, process, returncode)
-
-    def _process_done(self, process: subprocess.Popen[bytes], returncode: int) -> bool:
+    def _process_done(
+        self,
+        process: subprocess.Popen[bytes],
+        returncode: int,
+        stderr: str,
+    ) -> bool:
         if process is not self.process:
             return GLib.SOURCE_REMOVE
         auto_stop_was_requested = self.auto_stop_requested
@@ -675,9 +685,11 @@ class RecorderWindow(Gtk.ApplicationWindow):
         elif stopped_cleanly:
             self.status.set_text("Recording failed: the completed WAV file is missing.")
         else:
-            last = self.stderr_tail.replace("\r", "\n").strip().splitlines()
-            detail = last[-1] if last else f"exit code {returncode}"
-            self.status.set_text(f"Recording failed: {detail}")
+            detail = capture_error_detail(stderr, returncode)
+            message = f"Recording failed: {detail}"
+            if completed_file:
+                message += " The partial WAV was preserved."
+            self.status.set_text(message)
         self.process = None
         self.stop_requested = False
         self.auto_stop_requested = False
